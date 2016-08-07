@@ -19,7 +19,9 @@ device = require( "../../iotivity-node" )( "client" );
 
 module.exports = {
 
-  onResource: device.addEventListener.bind(null, "resourcefound"),
+  onResource: function(callback){
+    device.addEventListener("resourcefound",callback)
+  },
   discover: function(){
     console.log( "Issuing discovery request" );
     device.findResources().catch( function( error ) {
