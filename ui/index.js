@@ -19,6 +19,7 @@ console.log("Server running at http://127.0.0.1:8090/");
 ocfServer.onResource(function( event ){
   console.log(event);
 });
+ocfServer.discover();
 
 io.on('connection',function(socket){
   console.log('Lightbulb listener connected')
