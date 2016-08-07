@@ -15,7 +15,7 @@ var device,
 	observationCount = 0;
 
 console.log( "Acquiring OCF device" );
-device = require( "iotivity-node" )( "client" );
+device = require( "../../iotivity-node" )( "client" );
 
 module.exports = {
 
