@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css">
+    <style>
+      body {
+        font-family: "Gill Sans Extrabold", Helvetica, sans-serif;
+      }
+    </style>
+  </head>
+  <body style="background:#3b3b3b;">
+
+    <div
+      id="bulbContainer"
+      style="width:100%; height:100%; text-align:center;">
+      <i class="fa fa-lightbulb-o fa-5x" style="color:black; font-size:1500%;" aria-hidden="true"></i>
+      <h3>Off</h3>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/socket.io-client/1.3.2/socket.io.min.js"></script>
+    <script>
+      //Cached element references
+      var bulbContainer = $('#bulbContainer');
+      var icon = bulbContainer.find( 'i' );
+      var text = bulbContainer.find( 'h3' )
+      var title = $('title');
+
+      //App State
+      var state = 'off';
+
+      var states = {
+        on : {
+          bulb:{
+            color:'yellow'
+          },
+          text:{
+            text:'On'
+          }
+        },
+        off: {
+          bulb:{
+            color:'black'
+          },
+          text:{
+            text:'Off'
+          }
+        }
+      };
+
+      setState('off');
+
+
+      var socket = io();
+      socket.on('update', function (data) {
+        console.log('state update: ',data.state)
+        setState(data.state);
+        //socket.emit('my other event', { state: 'data' });
+      });
+
+
+      function setState( newState ){
+        var stateMeta = states[ newState ]
+        icon.css('color', stateMeta.bulb.color );
+        text.text( stateMeta.text.text );
+        title.text('LightBulb - '+ stateMeta.text.text)
+        state = newState;
+      }
+
+      function toggleState(){
+        if(state == "off"){
+          setState('on')
+        } else {
+          setState('off')
+        }
+      }
+
+    </script>
+  </body>
+</html>
