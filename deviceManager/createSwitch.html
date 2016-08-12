@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html ng-app="createApp">
+  <head>
+    <meta charset="utf-8">
+    <title>Create a new switch</title>
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-T8Gy5hrqNKT+hzMclPo118YTQO6cYprQmhrYwIiQ/3axmI1hQomh7Ud2hPOy8SP1" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="/createSwitch.css"/>
+  </head>
+
+  <body>
+    <div class="container" ng-controller="MainController as ctrl">
+
+      <form class="form-signin">
+        <h2 class="form-signin-heading">Create a Virtual Light Switch</h2>
+        <button class="btn btn-lg btn-success btn-block"
+                ng-disabled="doingDiscovery"type="submit"
+                ng-click="discoverResources()">
+          <span ng-if="doingDiscovery">Discovering</span>
+          <span ng-if="!doingDiscovery">Discover Light Resources</span>
+        </button><br/>
+
+        <div ng-show="!doingDiscovery">
+          <h4>Select light to be controlled</h4>
+          <ul class="list-group">
+            <li
+              class="list-group-item"
+              ng-repeat="resource in resources"
+              ng-click="selectItem(resource)"
+              ng-class="{'selected': isSelected(resource) }">
+              <i
+                class="fa fa-lightbulb-o fa-2x"
+                aria-hidden="true"></i>
+              {{resource.id.path}}
+            </li>
+          </ul>
+          <button
+            class="btn btn-lg btn-primary btn-block"
+            ng-disabled="!isSelectionValid()"
+            ng-click="createSwitch()"> Create Switch </button>
+      </div>
+
+
+      </form>
+
+    </div>
+      <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.0.1/ui-bootstrap.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.0.1/ui-bootstrap-tpls.min.js"></script>
+      <script src="/createSwitch.js"></script>
+  </body>
+</html>

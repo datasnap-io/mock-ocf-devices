@@ -16,27 +16,22 @@ server.listen(8090);
 
 console.log("Server running at http://127.0.0.1:8090/");
 
+var devices = {};
+
 ocfServer.onResource(function( event ){
+  var resource = event.resource;
+  if( !(resource.id.deviceId in devices) ){
+      devices[resource.id.deviceId] = {
+        resources:{}
+      }
+  }
+  devices[ resource.id.deviceId ].resources[ resource.id.path ] = resource;
+  io.emit('resource', resource);
   console.log(event);
 });
 ocfServer.discover();
 
 io.on('connection',function(socket){
   console.log('Lightbulb listener connected')
-  socket.emit('update',{state:state})
+  socket.emit( 'devices', devices)
 });
-
-function updateUI(state){
-  io.emit('update',{
-    state: state
-  });
-}
-
-// setInterval(function(){
-//   if(state === "off"){
-//     state = 'on'
-//   } else {
-//     state = 'off'
-//   }
-//   updateUI(state)
-// },5000)

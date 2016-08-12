@@ -7,7 +7,7 @@ var device = require( 'iotivity-node' )('client');
 var bodyParser = require("body-parser");
 var Q = require('q');
 var nodeUUID = require('node-uuid');
-var _ = require('lodash');
+var fp = require('find-free-port');
 
 //Configure
 app.engine('html', require('ejs').renderFile );
@@ -15,67 +15,105 @@ app.set('views',__dirname);
 app.set('view engine', 'html');
 app.use(express.static(__dirname+'/static'));
 app.use(bodyParser.json())
+
 //Routes
 app.get('/',function(req,res){
-  res.render('create',
+  res.render('index',
+    { title:'hey hey',
+      text:'sumfin here'
+    });
+})
+app.get('/light',function( req, res){
+  res.render('createLight',
+    { title:'hey hey',
+      text:'sumfin here'
+    });
+})
+app.get('/switch',function( req, res){
+  res.render('createSwitch',
     { title:'hey hey',
       text:'sumfin here'
     });
 })
 
+app.post('/create/light', function(req,res){
 
-app.post('/create',function(req,res){
-  console.log(req.body)
+  fp( 8070,9000,'127.0.0.1', function(err,openPort){
+    if(err){
+      res.status(500).json({error:err})
+      return
+    }
 
-  //var id = new Buffer(req.body.deviceId+':'+req.body.path).toString('base64')
+    pm2.connect(function(err){
+      console.log(err)
+        pm2.start({
+          script: __dirname+'/../lightbulb/light_server.js',
+          args:[
+            '-c', '"'+req.body.color+'"',
+            '-r', req.body.path,
+            '-p', openPort,
+            '-n', '"'+req.body.name+'"'
+          ],
+          name: [req.body.path,req.body.name,openPort].join('.')
+        }, function(err,output){
+          if(err){
+            res.status(500).json({error:err})
+            return
+          }
+          res.status(200).json({ port: openPort })
 
-  var name = JSON.stringify({ deviceId:req.body.deviceId, path:req.body.path });
-  var uuid = nodeUUID.v1();
+        })
+    });
 
-  getProcess(uuid)
-    .then(function(){
+  });
 
-      res.status(200).json({ hash: uuid})
+})
 
-    })
-    .catch(function(){
+app.post('/create/switch',function(req,res){
+
+  fp( 8070,9000,'127.0.0.1', function(err,openPort){
+    if(err){
+      res.status(500).json({error:err})
+      return
+    }
+    pm2.connect(function(err){
+      console.log(err)
       pm2.start({
-        script: __dirname+'/switch_ocf.js',
-        args:['-d',req.body.deviceId,'-p',req.body.path,'-h', uuid ],
-        name: uuid
-      },function(err,output){
+        script: __dirname+'/../switch/switch_server.js',
+        args:[
+          '-r', req.body.path,
+          '-p', openPort,
+          '-d', req.body.deviceId
+        ],
+        name: [req.body.path,req.body.name,openPort].join('.')
+      }, function(err,output){
         if(err){
           res.status(500).json({error:err})
           return
         }
-        //console.log('output was', output)
-        res.status(200).json({ hash: uuid })
+        res.status(200).json({ port: openPort })
       })
+    })
 
-    });
+  });
 
 })
 
 app.get('/kill/:uuid',function(req,res){
-  console.log(req.params.uuid)
 
-  getProcess( req.params.uuid )
+  getProcess(req.params.uuid)
     .then(function(proc){
-
-      pm2.delete( proc.name,function(err){
+      pm2.delete(req.params.uuid,function(err){
         if(err){
           console.log(err)
           res.status(500).send({error:err})
           return
         }
-        console.log('found for delete')
-        res.status(200).send(proc)
+        res.status(200).send()
       })
-
     })
-    .catch(function(err){
-      console.log('not found for delete')
-      res.status(500).json({error: error })
+    .catch(function(error){
+      res.status(404).send({error:err})
     })
 })
 
@@ -100,11 +138,11 @@ app.get('/clear',function(req,res){
         res.status(500).json({error:err})
       }
       console.log(list);
-
       list.forEach(function(process){
-        pm2.delete(process.pid,function(err){
+        pm2.delete(process.name,function(err){
           if(err){
             console.log(err)
+            res.status(500).send({error:err})
             return
           }
           res.status(200).send()
@@ -116,12 +154,9 @@ app.get('/clear',function(req,res){
 })
 
 app.get('/discover',function(req,res){
-  var resourceHash = {};
-
+  var resourceList = [];
   var resourceUpdate = function(resource){
-    console.log(resource)
-    var key = resource.resource.id.path + resource.resource.id.deviceId;
-    resourceHash[key] = resource.resource;
+    resourceList.push(resource.resource);
   }
 
   device.addEventListener("resourcefound", resourceUpdate )
@@ -138,57 +173,17 @@ app.get('/discover',function(req,res){
 
   setTimeout(function(){
     device.removeEventListener("resourcefound", resourceUpdate);
-    res.status(200).json( _.values(resourceHash) );
+    res.status(200).json(resourceList);
   }, 3000)
 
 });
 
-app.get('/switch/:uuid',function(req,res){
 
-  getProcess( req.params.uuid )
-    .then(function(process){
-      var id = rebuildFromArgs( process.pm2_env.args );
-      res.render('switch',{
-        hash: req.params.uuid,
-        deviceId:id.deviceId,
-        path: id.path
-      });
-    })
-    .catch(function(){
-      res.status(404).send('Process does not exist')
-    })
-});
 
-function rebuildFromArgs(args){
-  return {
-    deviceId: args[1],
-    path: args[3]
-  }
-}
-
-app.put('/switch/:uuid',function(req,res){
-
-  getProcess(req.params.uuid)
-    .then(function(process){
-
-      console.log('switch:'+req.params.uuid)
-      io.emit('switch:'+req.params.uuid, req.body.state);
-
-      res.status(200).json({
-        status:'success'
-      })
-
-    })
-    .catch(function(){
-      res.status(404).send('Process does not exist')
-    })
+server.listen( 8090, function(){
+  console.log("Device Manager Server running at:");
+  console.log("http://127.0.0.1:8090/");
 })
-
-server.listen( 8070, function(){
-  console.log("Server running at http://127.0.0.1:8070/");
-})
-
-
 
 function getProcess( uuid ){
   return Q.Promise(function(resolve,reject){
@@ -199,8 +194,8 @@ function getProcess( uuid ){
           res.status(500).json({error:err})
         }
 
-        var process = list.find(function(proc){
-          return proc.name === uuid;
+        var process = list.find(function(item){
+          return item.name === uuid;
         })
 
         if( process ){
@@ -212,12 +207,3 @@ function getProcess( uuid ){
     })
   })
 }
-
-//Socket.io Server
-io.on('connection',function(socket){
-  console.log('Switch listener connected')
-  //socket.emit('update', { state: state });
-  socket.on('debug',function(data){
-    console.log(JSON.stringify(data,null,4) )
-  })
-});
