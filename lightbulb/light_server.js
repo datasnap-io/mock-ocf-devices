@@ -4,6 +4,7 @@ var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var Q = require('q');
 var bodyParser = require("body-parser");
+var nodeUUID = require('node-uuid');
 
 var lightResource, device;
 var argv = require('yargs')
@@ -40,8 +41,14 @@ app.set('view engine', 'html');
 app.use(express.static( __dirname+'/static') );
 app.use(bodyParser.json())
 
-//OCF
+/***
+
+  Interesting Stuff Starts here
+
+***/
+
 device = require('iotivity-node')('server');
+var client = require('iotivity-node')('client');
 
 device.device = Object.assign( device.device, {
   name: argv.name
@@ -57,7 +64,8 @@ device.platform = Object.assign(device.platform, {
 
 var registered = device.register({
   id: {
-    path: argv.path},
+    path: argv.path
+  },
   resourceTypes:['core.light'],
   interfaces: ['oic.if.baseline'],
   discoverable: true,
@@ -90,12 +98,16 @@ var registered = device.register({
     console.log('update received')
     lightResource.properties = Object.assign( lightResource.properties, request.res );
 
-    device.notify(lightResource).catch(function(err){
-      console.log('notify error',err)
-    });
+    device.notify(lightResource);
+
+    console.log('Sending response')
     request.sendResponse( lightResource, handleError);
+
+    console.log('updating ui', lightResource)
     io.emit( 'update', lightResource.properties );
+
   });
+
   return resource;
 })
 

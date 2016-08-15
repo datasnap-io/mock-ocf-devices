@@ -8,6 +8,7 @@ var bodyParser = require("body-parser");
 var Q = require('q');
 var nodeUUID = require('node-uuid');
 var fp = require('find-free-port');
+var fs = require('fs');
 
 //Configure
 app.engine('html', require('ejs').renderFile );
@@ -99,11 +100,77 @@ app.post('/create/switch',function(req,res){
 
 })
 
-app.get('/kill/:uuid',function(req,res){
+app.get('/logs/:id',function(req,res){
+  pm2.connect(function(err){
+    pm2.list(function(err,list){
+      if( err ){
+        res.status( 500 ).send( err );
+      }
+      var foundProc = list.find(function(proc){
+        console.log(proc)
+        console.log(req.params.id)
+        return proc.pm_id === parseInt(req.params.id)
+      })
 
-  getProcess(req.params.uuid)
+      if(foundProc){
+
+        var regularLogs = Q.promise(function(resolve,reject){
+
+        })
+
+        var regularLogs = Q.promise(function( resolve, reject){
+            fs.readFile(foundProc.pm2_env.pm_out_log_path,function(err,data){
+              if(err){
+                reject(err)
+              }else {
+                resolve(data.toString('utf-8'))
+              }
+            })
+        });
+
+        regularLogs
+          .then(function(logfile){
+            res.render('logTemplate',{ content: logfile})
+
+          })
+          .catch(function(err){
+            console.log("Error gettings logs")
+            console.log(err)
+            res.status( 500 ).send( err );
+          })
+
+
+      } else {
+        res.status(404).send('Process not found')
+      }
+
+    })
+  })
+
+})
+
+app.get('/restart/:id',function(req,res){
+  getProcessById(req.params.id)
+    .then(function(process){
+      pm2.restart( process, function(err){
+        if(err){
+          res.status(500).json(err)
+        } else {
+          res.status(200).send({success:true})
+        }
+      });
+    })
+    .catch(function(err){
+      res.status(500).json(err)
+    })
+
+})
+
+app.get('/kill/:id',function(req,res){
+
+  getProcessById(req.params.id)
     .then(function(proc){
-      pm2.delete(req.params.uuid,function(err){
+      pm2.delete(proc.pm_id,function(err){
         if(err){
           console.log(err)
           res.status(500).send({error:err})
@@ -173,11 +240,11 @@ app.get('/discover',function(req,res){
 
   setTimeout(function(){
     device.removeEventListener("resourcefound", resourceUpdate);
+    console.log(resourceList)
     res.status(200).json(resourceList);
   }, 3000)
 
 });
-
 
 
 server.listen( 8090, function(){
@@ -185,23 +252,29 @@ server.listen( 8090, function(){
   console.log("http://127.0.0.1:8090/");
 })
 
-function getProcess( uuid ){
+function getProcessById( id ){
+  return findProcess(function(process){
+    return process.pm_id === parseInt(id);
+  })
+}
+
+function findProcess(findFn,input){
+  findFn = findFn || function(){ return true; }
   return Q.Promise(function(resolve,reject){
     pm2.connect(function(err){
       pm2.list(function(err,list){
+        var process;
         if(err){
           console.log('err', err)
-          res.status(500).json({error:err})
+          reject(err)
         }
 
-        var process = list.find(function(item){
-          return item.name === uuid;
-        })
+        process = list.find(findFn);
 
         if( process ){
             resolve(process)
         }else{
-          reject()
+            reject({error: "Could not find the process"})
         }
       })
     })

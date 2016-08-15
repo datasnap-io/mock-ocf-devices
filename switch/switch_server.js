@@ -10,7 +10,7 @@ var argv = require('yargs')
     .option('p',{
       alias: 'port',
       demand: true,
-      describe: 'The OCF path for the light to be controlled',
+      describe: 'Port to run this server on',
       type: 'string'
     })
     .option('r', {
@@ -22,7 +22,6 @@ var argv = require('yargs')
     })
     .option('d', {
         alias: 'deviceid',
-        demand: true,
         describe: 'The OCF device id for the light to be controlled',
         type: 'string'
     })
@@ -34,10 +33,21 @@ app.set('view engine', 'html');
 app.use(express.static( __dirname+'/static') );
 app.use(bodyParser.json())
 
-//OCF
-var timeout;
+//Routes
+app.get('/',function(req,res){
+  res.render('switch',{
+    path: argv.path
+  });
+})
+
 var discoverDefer = Q.defer();
 var discovered = discoverDefer.promise;
+
+/***
+
+  Interesting Stuff Starts here
+
+***/
 
 function findResources(){
   console.log('searching for lights..')
@@ -53,55 +63,54 @@ function findResources(){
 
 var resourceFinder = function(event){
   var res = event.resource;
-  if( (res.id.path === argv.path) && _.includes(res.resourceTypes,'core.light') ){
+  if( res.id.path === argv.path ){
     console.log('found light')
-    clearInterval(timeout);
     device.removeEventListener( 'resourcefound', resourceFinder)
     discoverDefer.resolve(res);
   }
 }
+
 device.addEventListener("resourcefound", resourceFinder )
+
 findResources();
 
-function handleError( theError ) {
-  console.error( theError );
-  process.exit( 1 );
-}
-
-//Routes
-app.get('/',function(req,res){
-  res.render('switch',{
-    deviceId: argv.deviceid,
-    path: argv.path
-  });
-})
-
 io.on('connection',function(socket){
+
+  //Notify when we have discovered the device
+  discovered.then(function(resource){
+      socket.emit('found',resource)
+  });
+
   socket.on('change',function(state){
-    console.log('got the change',state)
+    console.log('Server received change request');
     discovered
       .then(function(resource){
-        console.log('Device has been discovered')
+        console.log('Updating OCF device:')
         //Try to update device
         device.update({
           id: resource.id,
           properties: state
         })
         .then(function(resp){
+          console.log('Succussfully updated', resource, resp)
           socket.emit('debug','Successfully changed state')
         })
         .catch(function(error){
+          console.log('error updating')
+          console.log(error)
           socket.emit('debug',{'error':error})
-          process.exit(1)
         });
-
       })
   })
-  socket.on('discover',function(state){
-    console.log('got discover')
-  })
+
 })
 
 server.listen( argv.port, function(){
   console.log("Server running at http://127.0.0.1:"+argv.port);
 });
+
+
+function handleError( theError ) {
+  console.error( theError );
+  process.exit( 1 );
+}
