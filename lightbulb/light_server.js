@@ -128,8 +128,8 @@ app.get('/',function(req,res){
   registered
     .then(function(resource){
       console.log(resource)
-      res.render('light',{
-        color: argv.color,
+      res.render('light_2',{
+        color: argv.color.replace(/["]/g,""),
         deviceId: resource.id.deviceId,
         path: resource.id.path,
       });

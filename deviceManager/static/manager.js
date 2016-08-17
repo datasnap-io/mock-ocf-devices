@@ -106,7 +106,7 @@ angular.module('deviceManager',['ui.bootstrap','colorpicker.module'])
               console.log(result.data)
 
               $timeout(function(){
-                window.open( UtilsService.getBaseUrl()+':'+result.data.port+"/?cb="+Date.now(),Date.now(), "height=250,width=300");
+                window.open( UtilsService.getBaseUrl()+':'+result.data.port+"/?cb="+Date.now(),Date.now(), "height=290,width=300,location=false,scroll=false,resizable=false");
                 $uibModalInstance.close( result.data );
               }, 4000)
 
