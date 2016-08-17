@@ -9,7 +9,12 @@ var Q = require('q');
 var nodeUUID = require('node-uuid');
 var fp = require('find-free-port');
 var fs = require('fs');
+var ip = require('ip');
 
+
+if(process.argv[2] === 'init'){
+  process.exit(0);
+}
 //Configure
 app.engine('html', require('ejs').renderFile );
 app.set('views',__dirname);
@@ -249,7 +254,9 @@ app.get('/discover',function(req,res){
 
 server.listen( 8090, function(){
   console.log("Device Manager Server running at:");
-  console.log("http://127.0.0.1:8090/");
+  console.log("http://"+ip.address()+":8090");
+  console.log('or if running locally:')
+  console.log('http://127.0.0.1:8090')
 })
 
 function getProcessById( id ){

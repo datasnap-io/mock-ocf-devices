@@ -39,6 +39,10 @@ app.get('/',function(req,res){
     path: argv.path
   });
 })
+app.get('/discover',function(req,res){
+  findResources();
+  res.status(200).send();
+});
 
 var discoverDefer = Q.defer();
 var discovered = discoverDefer.promise;
@@ -48,9 +52,21 @@ var discovered = discoverDefer.promise;
   Interesting Stuff Starts here
 
 ***/
+var timeout;
+var found = false;
+var resource;
 
 function findResources(){
   console.log('searching for lights..')
+
+  timeout = setTimeout(function(){
+    console.log('timeout called')
+    found = false;
+    device.removeEventListener( 'resourcefound', resourceFinder)
+    io.emit('discovery',false);
+  }, 4000)
+
+  device.addEventListener("resourcefound", resourceFinder )
   device.findResources({
     resourceType:'core.light'
   })
@@ -66,41 +82,39 @@ var resourceFinder = function(event){
   if( res.id.path === argv.path ){
     console.log('found light')
     device.removeEventListener( 'resourcefound', resourceFinder)
-    discoverDefer.resolve(res);
+    found = true;
+    clearTimeout(timeout)
+    resource = res;
+    io.emit('discovery',true)
   }
 }
 
-device.addEventListener("resourcefound", resourceFinder )
-
 findResources();
+
 
 io.on('connection',function(socket){
 
+  socket.emit('discovery', found);
   //Notify when we have discovered the device
-  discovered.then(function(resource){
-      socket.emit('found',resource)
-  });
 
   socket.on('change',function(state){
     console.log('Server received change request');
-    discovered
-      .then(function(resource){
-        console.log('Updating OCF device:')
-        //Try to update device
-        device.update({
-          id: resource.id,
-          properties: state
-        })
-        .then(function(resp){
-          console.log('Succussfully updated', resource, resp)
-          socket.emit('debug','Successfully changed state')
-        })
-        .catch(function(error){
-          console.log('error updating')
-          console.log(error)
-          socket.emit('debug',{'error':error})
-        });
-      })
+    console.log('Updating OCF device:')
+    //Try to update device
+    device.update({
+      id: resource.id,
+      properties: state
+    })
+    .then(function(resp){
+      console.log('Succussfully updated', resource, resp)
+      socket.emit('debug','Successfully changed state')
+    })
+    .catch(function(error){
+      console.log('error updating')
+      console.log(error)
+      socket.emit('debug',{'error':error})
+    });
+
   })
 
 })

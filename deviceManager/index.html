@@ -6,26 +6,54 @@
     <title>OCF Virtual Device Manager</title>
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-T8Gy5hrqNKT+hzMclPo118YTQO6cYprQmhrYwIiQ/3axmI1hQomh7Ud2hPOy8SP1" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/3.3.7/darkly/bootstrap.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-bootstrap-colorpicker/3.0.25/css/colorpicker.css">
+
     <link rel="stylesheet" href="/manager.css"/>
   </head>
 
   <body>
     <div class="container" ng-controller="MainController as ctrl">
       <div>
-        <p>
-          <a href="/light" target="_blank"
-            type="button"
-            class="btn btn-primary btn-lg"
-            >Create Light</a>
-
-          <a href="/switch" target="_blank"
-            type="button"
-            class="btn btn-default btn-lg"
-            >Create Switch</a>
-        </p>
+          <h2> Virtual OCF Device Manager </h2>
       </div>
-      <table class="table">
+      <br/>
+      <br/>
+      <div>
+        <span class="pull-left">
+          <button
+            ng-click="createLight()"
+            type="button"
+            class="btn btn-primary"
+            >Create Light</button>
+          <button
+            ng-click="createSwitch()"
+            type="button"
+            class="btn btn-default"
+            >Create Switch</button>
+        </span>
+        <span class="pull-right">
+          <button class="btn btn-link"
+            ng-click="refreshList()"
+          >
+            <i class="fa fa-refresh" aria-hidden="true"></i> Refresh List
+          </button>
+
+          <button class="btn btn-link"
+            ng-click='actions.clearProcesses()'
+          >
+            <i class="fa fa-ban" aria-hidden="true"></i> Remove All Processes
+          </button>
+        </span>
+      <div>
+        <br/>
+      <div ng-show="processes.length===0" style="text-align:center;">
+        <br/>
+        <br/>
+        <h3>You have no running devices</h3>
+        <h4>Start by creating a light with the button above.</h4>
+      </div>
+      <table class="table" ng-show="processes.length > 0">
         <thead>
           <tr>
             <th>Script</th>
@@ -62,7 +90,8 @@
                     href="/#"
                     ng-click="actions.restartProcess(process)"
                     >
-                <i class="fa fa-refresh" aria-hidden="true"></i>
+                    <i class="fa fa-repeat" aria-hidden="true"></i>
+
               </a>
               <a    class="btn btn-link"
                     uib-tooltip='Kill Process'
@@ -76,8 +105,94 @@
           </tr>
         </tbody>
       </table>
-
     </div>
+    <script type="text/ng-template" id="createLightModal.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Create a Virtual Light</h3>
+        </div>
+        <div class="modal-body">
+          <div ng-show="creating">
+            <i class="fa fa-cog fa-spin fa-3x fa-fw"></i><span style="font-size:180%;"> Launching new lightbulb process.</span>
+          </div>
+          <form class="form-signin" ng-show="!creating">
+            <div>
+              <h4>Light Settings</h4>
+              <form class="form-signin">
+
+              <label for="inputEmail" class="sr-only">Name</label>
+              <input type="text" id="inputEmail" ng-model="model.name" class="form-control"
+                placeholder="Name" required="" autofocus=""><br/>
+
+              <label for="inputPassword" class="sr-only">Path</label>
+              <input type="text" id="inputPassword" ng-model="model.path" class="form-control" placeholder="Path" required="">
+              <br/>
+
+              <div style="text-align: center;">
+              <label for="inputEmail" class="sr-only">Color</label>
+                <span>Light Color:</span>
+                <div ng-style="colorStyle">&nbsp;</div>
+                <button colorpicker type="button"  class="btn "colorpicker-position="top" ng-model="model.color">Change</button>
+              </div>
+            <br/>
+
+          </div>
+
+          </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" type="button" ng-click="cancel()">Cancel</button>
+            <button
+              class="btn btn-primary"
+              type="button"
+              ng-disabled="!isFormValid() || creating"
+              ng-click="createLight()">Create Light</button>
+
+        </div>
+    </script>
+    <script type="text/ng-template" id="createSwitchModal.html">
+        <div class="modal-header">
+            <h3 class="modal-title">Create a Virtual Switch</h3>
+        </div>
+        <div class="modal-body">
+          <div ng-show="creating">
+            <i class="fa fa-cog fa-spin fa-3x fa-fw"></i><span style="font-size:180%;"> Launching new switch process.</span>
+          </div>
+          <form class="form-signin" ng-show="!creating">
+            <button class="btn btn-lg btn-success btn-block"
+                    ng-disabled="doingDiscovery"type="submit"
+                    ng-click="discoverResources()">
+              <span ng-if="doingDiscovery">Discovering</span>
+              <span ng-if="!doingDiscovery">Discover Light Resources</span>
+            </button><br/>
+
+            <div ng-show="!doingDiscovery">
+              <h4>Select light to be controlled</h4>
+              <ul class="list-group">
+                <li
+                  class="list-group-item"
+                  ng-repeat="resource in resources"
+                  ng-click="selectItem(resource)"
+                  ng-class="{'selected': isSelected(resource) }">
+                  <i
+                    class="fa fa-lightbulb-o fa-2x"
+                    aria-hidden="true"></i>
+                  {{resource.id.path}}
+                </li>
+              </ul>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" type="button" ng-click="cancel()">Cancel</button>
+            <button
+              class="btn btn-primary"
+              type="button"
+              ng-disabled="!isSelectionValid() || creating"
+              ng-click="createSwitch()"> Create Switch</button>
+
+        </div>
+    </script>
+
       <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.0.1/ui-bootstrap.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.0.1/ui-bootstrap-tpls.min.js"></script>
